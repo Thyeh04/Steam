@@ -19,12 +19,7 @@ Playoff results and statistics
 
 CSV files (source: https://www.kaggle.com/datasets/arpan129/dota-2-the-international-complete-dataset):
 
-File	Description
-prize_pool.csv	Prize money and final standings
-playoffs.csv	Main event playoff matches
-group_a.csv	Group A standings
-group_b.csv	Group B standings
-country_representation.csv	Countries and players
+
 
 Notes:
 
