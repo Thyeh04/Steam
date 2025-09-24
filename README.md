@@ -1,40 +1,44 @@
 📌 Project: Analysis of The International (Dota 2) Dataset
 📖 Overview
 
-This project analyzes The International (TI) Dota 2 tournament dataset using PostgreSQL and pgAdmin. The dataset includes prize pool standings, group stage results, playoff matches, and country representation of players.
+This project analyzes The International (TI) Dota 2 tournament dataset.
 
-The goal is to store the data in a relational database and run SQL queries to extract insights such as:
+Goal: Store data in PostgreSQL and extract insights using SQL and Python.
 
-Which teams won the most prize money
+Key insights include:
+
+Teams with the highest prize money
 
 Group stage rankings
 
-Country representation
+Country representation of players
 
 Playoff results and statistics
 
-📂 Dataset Files
+📂 Dataset
 
-The dataset (CSV files) comes from Liquipedia.net (scraped).
-The following files are used:
+CSV files (source: https://www.kaggle.com/datasets/arpan129/dota-2-the-international-complete-dataset):
 
-prize_pool.csv → Prize money and final standings
+File	Description
+prize_pool.csv	Prize money and final standings
+playoffs.csv	Main event playoff matches
+group_a.csv	Group A standings
+group_b.csv	Group B standings
+country_representation.csv	Countries and players
 
-playoffs.csv → Main event playoff matches
+Notes:
 
-group_a.csv → Group A standings
+Remove the first index column (0,1,2...) before importing.
 
-group_b.csv → Group B standings
+Do not import id (Postgres auto-generates it).
 
-country_representation.csv → Countries and player
+Numeric fields (prize_amount, wins, points_num) must be cleaned (no $, %, or text).
 
 🛠️ Database Setup
 
-Create a database in pgAdmin (e.g., dota2_ti).
+Create a database, e.g., ti_db, and tables:
 
-Run the following table creation scripts:
-
--- Prize pool table
+-- Prize pool
 CREATE TABLE prize_pool (
     id SERIAL PRIMARY KEY,
     place TEXT,
@@ -43,7 +47,7 @@ CREATE TABLE prize_pool (
     team TEXT
 );
 
--- Playoffs table
+-- Playoffs
 CREATE TABLE playoffs (
     id SERIAL PRIMARY KEY,
     round TEXT,
@@ -54,7 +58,7 @@ CREATE TABLE playoffs (
     winner TEXT
 );
 
--- Group A standings
+-- Group A
 CREATE TABLE group_a_clean (
     id SERIAL PRIMARY KEY,
     team TEXT,
@@ -64,7 +68,7 @@ CREATE TABLE group_a_clean (
     points_num INT
 );
 
--- Group B standings
+-- Group B
 CREATE TABLE group_b_clean (
     id SERIAL PRIMARY KEY,
     team TEXT,
@@ -81,73 +85,120 @@ CREATE TABLE country_rep_clean (
     num_from_country INT,
     players TEXT
 );
+<img width="1090" height="541" alt="Снимок экрана 2025-09-24 081213" src="https://github.com/user-attachments/assets/f658e128-8250-480e-ad2d-2a1d7aa48943" />
 
 
-Import CSV files into their respective tables.
+Import CSV files into respective tables using pgAdmin or COPY FROM.
 
-Remove the first index column from each CSV before importing (those 0,1,2... rows are just counters).
+🔧 Python Script: project_DATA.py
 
-Do not include id in the import (Postgres auto-generates it).
+The script connects to PostgreSQL, runs 10 SQL queries, and prints results as tables using pandas.
 
-Ensure numeric fields (prize_amount, wins, points_num) are cleaned (no $, %, or text).
+Database connection:
+DB_USER = "ti_user"
+DB_PASS = "MyStrongPass123"
+DB_NAME = "ti_db"
+DB_HOST = "localhost"
+DB_PORT = "5432"
 
-See queries.sql
- for the full list (10 queries). Examples:
+🔹 10 SQL Queries Executed
 
--- Top 5 teams by prize money
-SELECT team, prize_amount
+Prize Pool Standings (team + prize_usd)
+
+SELECT team, prize_amount::BIGINT AS prize_usd
 FROM prize_pool
-ORDER BY prize_amount DESC
-LIMIT 5;
-<img width="1404" height="371" alt="image" src="https://github.com/user-attachments/assets/561daee9-78fb-4941-9945-e4cf929c0abd" />
+ORDER BY prize_usd DESC NULLS LAST;
 
--- Total prize pool distributed
-SELECT SUM(prize_amount) AS total_prize_pool
+
+Group A Standings
+
+SELECT team, wins, draws, losses, (wins * 2 + COALESCE(draws,0)) AS points_num
+FROM group_a_clean
+ORDER BY points_num DESC;
+
+
+Group B Standings
+
+SELECT team, wins, draws, losses, (wins * 2 + COALESCE(draws,0)) AS points_num
+FROM group_b_clean
+ORDER BY points_num DESC;
+
+
+Number of Teams per Country
+
+SELECT country, num_from_country AS players_count
+FROM country_rep_clean
+ORDER BY players_count DESC;
+
+
+Grand Final Match(es)
+
+SELECT id, round, team1, score1, team2, score2, winner
+FROM playoffs
+WHERE round ILIKE '%grand final%'
+ORDER BY id;
+
+
+JOIN: Teams with Group Points and Prize Money
+
+SELECT g.team, g.points_num, prize_amount::BIGINT AS prize_usd
+FROM (
+    SELECT team, (wins * 2 + COALESCE(draws,0)) AS points_num FROM group_a_clean
+    UNION ALL
+    SELECT team, (wins * 2 + COALESCE(draws,0)) AS points_num FROM group_b_clean
+) g
+LEFT JOIN prize_pool p ON lower(trim(p.team)) = lower(trim(g.team))
+ORDER BY prize_usd DESC NULLS LAST;
+
+
+Top Team Across All Groups
+
+SELECT team, wins, points_num
+FROM (
+    SELECT team, wins, points_num FROM group_a_clean
+    UNION ALL
+    SELECT team, wins, points_num FROM group_b_clean
+) all_groups
+ORDER BY wins DESC, points_num DESC
+LIMIT 1;
+
+
+Total Number of Playoff Matches
+
+SELECT COUNT(*) AS total_matches
+FROM playoffs_matches;
+
+
+JOIN: Country Representation with Teams Count
+
+SELECT cr.country, cr.num_from_country AS players, COUNT(DISTINCT g.team) AS teams_count
+FROM country_rep_clean cr
+JOIN (
+    SELECT team, 'China' AS country FROM group_a_clean
+    UNION ALL
+    SELECT team, 'Ukraine' AS country FROM group_b_clean
+) g ON cr.country = g.country
+GROUP BY cr.country, cr.num_from_country
+ORDER BY teams_count DESC;
+
+
+Total Prize Money Across All Teams
+
+SELECT SUM(prize_amount::BIGINT) AS total_prize_usd
 FROM prize_pool;
 
--- Group A standings sorted by wins
-SELECT team, wins, points_num
-FROM group_a_clean
-ORDER BY wins DESC, points_num DESC;
-
-
-📌 Python Script (Data Analysis)
-
-The project includes a script project DATA.py that connects to the PostgreSQL database and displays query results in a readable tabular format using pandas.
-
-🔧 Main Steps:
-
-Connects to the database ti_db using the user ti_user.
-
-Executes SQL queries to fetch:
-
-Prize Pool Standings – ranking teams by total earnings.
-
-Group A Standings – table with wins, draws, losses, and calculated points.
-
-Group B Standings – same structure for Group B teams.
-
-Country Representation – list of countries and their associated teams.
-
-Prints the data as tables in the console using pandas.
-
-Closes the database connection after execution.
-
-📚 Libraries Used:
-
-psycopg2 – PostgreSQL connection driver
-
-pandas – tabular data handling and display
-
-▶️ How to Run:
+▶️ How to Run
 
 Install dependencies:
 
 pip install psycopg2 pandas
 
 
-Make sure PostgreSQL is running and the database ti_db is accessible.
+Ensure PostgreSQL is running and ti_db is accessible.
 
 Run the script:
 
-python "project DATA.py"
+python "project_DATA.py"
+
+
+Results will be printed in the console as pandas tables.
