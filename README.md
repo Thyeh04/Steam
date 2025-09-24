@@ -109,3 +109,45 @@ FROM prize_pool;
 SELECT team, wins, points_num
 FROM group_a_clean
 ORDER BY wins DESC, points_num DESC;
+
+
+📌 Python Script (Data Analysis)
+
+The project includes a script project DATA.py that connects to the PostgreSQL database and displays query results in a readable tabular format using pandas.
+
+🔧 Main Steps:
+
+Connects to the database ti_db using the user ti_user.
+
+Executes SQL queries to fetch:
+
+Prize Pool Standings – ranking teams by total earnings.
+
+Group A Standings – table with wins, draws, losses, and calculated points.
+
+Group B Standings – same structure for Group B teams.
+
+Country Representation – list of countries and their associated teams.
+
+Prints the data as tables in the console using pandas.
+
+Closes the database connection after execution.
+
+📚 Libraries Used:
+
+psycopg2 – PostgreSQL connection driver
+
+pandas – tabular data handling and display
+
+▶️ How to Run:
+
+Install dependencies:
+
+pip install psycopg2 pandas
+
+
+Make sure PostgreSQL is running and the database ti_db is accessible.
+
+Run the script:
+
+python "project DATA.py"
