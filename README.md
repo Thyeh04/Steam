@@ -100,10 +100,10 @@ DB_PORT = "5432"
 
 Prize Pool Standings (team + prize_usd)
 
-SELECT team, prize_amount::BIGINT AS prize_usd
+```SELECT team, prize_amount::BIGINT AS prize_usd
 FROM prize_pool
 ORDER BY prize_usd DESC NULLS LAST;
-
+```
 
 Group A Standings
 
